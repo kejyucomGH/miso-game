@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>秘宝の重箱と二人の大冒険 ～元の姿をとりもどせ！～</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .game-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            max-width: 600px;
+            width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        h1 {
+            color: #d35400;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .stage-badge {
+            display: inline-block;
+            background: #e67e22;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .story-box {
+            background: #fdf6ec;
+            border: 2px dashed #e67e22;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+            font-size: 1rem;
+            line-height: 1.6;
+            border-radius: 8px;
+        }
+        .speaker-name {
+            font-weight: bold;
+            color: #d35400;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .choice-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-align: left;
+        }
+        .choice-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        .choice-btn:active {
+            transform: translateY(0);
+        }
+        .message {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .message.correct {
+            color: #27ae60;
+        }
+        .message.wrong {
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1>🐢 秘宝の重箱と二人の大冒険</h1>
+    <div id="stage-badge" class="stage-badge">プロローグ</div>
+    
+    <div id="game-content">
+        <!-- 動的にコンテンツが切り替わります -->
+    </div>
+</div>
+
+<script>
+    const questions = [
+        {
+            stage: "第1の関門",
+            enemy: "🐢 図書館アサリ池の阿闍梨さま",
+            encounter: "みそっちとたまりちゃんが最初にたどり着いたのは、図書館アサリ池！<br>そこに現れたのは、怪しく光る甲羅を持つ『阿闍梨さま』だった！<br>「ふふふ、通したくばわしの問いに答えてみよ！」",
+            story: "ビー玉を入れたプラスチックカップの上にフック付きのクリアシートを密着させると、カップを持ち上げることができる。このとき、カップが落ちないのは、カップの内側と外側のどちらの気圧が大きいからかな？",
+            choices: [
+                "内側の気圧",
+                "外側の気圧"
+            ],
+            answer: "外側の気圧"
+        },
+        {
+            stage: "第2の関門（1問目）",
+            enemy: "🌿 壱町田湿地のシロバナナガバノイシモチソウちゃん",
+            encounter: "続いて二人が迷い込んだのは、みずみずしい緑あふれる「壱町田湿地」！<br>待ち構えていたのは、食虫植物の精霊『シロバナナガバノイシモチソウちゃん』だ！<br>「私の湿地帯を通るなら、植物の秘密を答えなさい！」",
+            story: "シロバナナガバノイシモチソウなどの食虫植物が虫を捕まえるために葉の表面に出している、キラキラ光る粘液の主な役割は何かしら？",
+            choices: [
+                "虫を誘い、捕まえて消化・吸収するため",
+                "太陽の光を鏡のように反射して身を隠すため",
+                "水分が蒸発するのを完全に防ぐため"
+            ],
+            answer: "虫を誘い、捕まえて消化・吸収するため"
+        },
+        {
+            stage: "第2の関門（2問目）",
+            enemy: "🌿 壱町田湿地のシロバナナガバノイシモチソウちゃん",
+            encounter: "「ふんっ、なかなかやるわね……。でも次の問題はどうかしら！」",
+            story: "手作り凧を飛ばすとき、風を受けて凧を浮き上がらせる『引き糸』は、凧のどのあたりにつけるのが正解だったかしら？",
+            choices: [
+                "凧の一番上の端",
+                "中心よりも少し上（上から3分の1くらいの位置）",
+                "凧の一番下の端"
+            ],
+            answer: "中心よりも少し上（上から3分の1くらいの位置）"
+        },
+        {
+            stage: "第3の関門（1問目）",
+            enemy: "🚂 転車台ポケットパークの転車台くん",
+            encounter: "ゴゴゴ……と大地を揺らして現れたのは、力持ちの『転車台くん』！<br>「ワシを回すパワーのように、科学の熱い問題を出してやるぜ！」",
+            story: "アルミホイルで作った非常に細い『フィラメント』に電気を流すと光る。これは、細いアルミホイルのどのような性質を利用して高温にしているかな？",
+            choices: [
+                "電流が流れにくい性質",
+                "電流が流れやすい性質"
+            ],
+            answer: "電流が流れにくい性質"
+        },
+        {
+            stage: "第3の関門（2問目）",
+            enemy: "🚂 転車台ポケットパークの転車台くん",
+            encounter: "「よし、次の問題だ！油断するなよ！」",
+            story: "エジソンが世界で初めて実用的な電球のフィラメントとして見つけ出し、何百時間もの連続点灯を成功させた、日本・京都の素材は何だったかな？",
+            choices: [
+                "木綿糸",
+                "扇子の骨に使われていた「竹」",
+                "和紙"
+            ],
+            answer: "扇子の骨に使われていた「竹」"
+        },
+        {
+            stage: "第3の関門（3問目）",
+            enemy: "🚂 転車台ポケットパークの転車台くん",
+            encounter: "「いよいよ第3関門の最後だ！気合を入れてかかってこい！」",
+            story: "江戸時代の日本で、凧が最初に呼ばれていた海の生き物の名前は何だったかな？",
+            choices: [
+                "クラゲ",
+                "イカ",
+                "カメ"
+            ],
+            answer: "イカ"
+        },
+        {
+            stage: "第4の関門（1問目）",
+            enemy: "🏛️ 地域交流センターの森田萬右衛門さん",
+            encounter: "ついに最終決戦の地、地域交流センターに到着した二人。<br>待ち構えていたのは、武豊町の歴史ある偉人『森田萬右衛門（もりた まんえもん）さん』だ！<br>「わしの前にたどり着いたということは、科学の知識も相当なものだな。最後の試練を受けてみよ！」",
+            story: "20世紀初頭に世界初の有人飛行機を成功させたライト兄弟は、機体を作る前に『翼を支える力』や『姿勢の保ち方』を研究するために、何を使って実験を重ねたかな？",
+            choices: [
+                "ブーメラン",
+                "大きな凧",
+                "模型の気球"
+            ],
+            answer: "大きな凧"
+        },
+        {
+            stage: "第4の関門（2問目）",
+            enemy: "🏛️ 地域交流センターの森田萬右衛門さん",
+            encounter: "「では第2の試練じゃ！」",
+            story: "科学者ベンジャミン・フランクリンが『雷の正体は電気ではないか』と確かめるため、雨雲に向かって揚げたものは何だったかな？",
+            choices: [
+                "避雷針",
+                "金属製のブーメラン",
+                "凧"
+            ],
+            answer: "凧"
+        },
+        {
+            stage: "第4の関門（3問目）",
+            enemy: "🏛️ 地域交流センターの森田萬右衛門さん",
+            encounter: "「続いて第3の試練じゃ！」",
+            story: "吸盤が壁にくっつく仕組みは、最初の『クリアファイルの実験』と共通している。吸盤がくっつくのも何を利用しているかな？",
+            choices: [
+                "磁石の力",
+                "静電気の力",
+                "空気の力（気圧）"
+            ],
+            answer: "空気の力（気圧）"
+        },
+        {
+            stage: "第4の関門（最終問題！）",
+            enemy: "🏛️ 地域交流センターの森田萬右衛門さん",
+            encounter: "「いよいよこれが最後の試練じゃ、心して答えよ！」",
+            story: "手作り凧において、空気を左右に逃がして空中での姿勢を安定させるために取り付けるものは次のうちどれかな？",
+            choices: [
+                "輪ゴム",
+                "横糸（凧をそらせるための糸）",
+                "クリップ"
+            ],
+            answer: "横糸（凧をそらせるための糸）"
+        }
+    ];
+
+    let currentStep = -1;
+    let currentShuffledChoices = [];
+
+    function shuffleArray(array) {
+        const arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function renderGame() {
+        const badge = document.getElementById('stage-badge');
+        const content = document.getElementById('game-content');
+
+        if (currentStep === -1) {
+            badge.innerText = "プロローグ";
+            content.innerHTML = `
+                <div class="story-box" style="text-align:left;">
+                    <div class="speaker-name">📖 始まりの物語</div>
+                    むかしむかし、武豊町で助けた亀から「重箱」をもらった人間。<br>
+                    家へ帰ってワクワクしながら重箱のふたを開けると、中からモクモクと湯気が……！<br>
+                    気がつくと、体は「みそ（みそっち）」と「たまり（たまりちゃん）」になってしまっていた！<br><br>
+                    元の姿に戻るには、武豊町に眠る<strong>「伝説のみそ」</strong>と<strong>「伝説のたまり」</strong>を手に入れ、その料理を食べなければならない。<br>
+                    かくして、二人のちょっぴりシュールで熱い冒険の旅が始まった――！
+                </div>
+                <button class="choice-btn" style="text-align:center; background:#e67e22;" onclick="nextStep()">冒険に出発する！</button>
+            `;
+        } else if (currentStep < questions.length) {
+            const q = questions[currentStep];
+            badge.innerText = q.stage;
+            
+            currentShuffledChoices = shuffleArray(q.choices);
+
+            let choicesHtml = '';
+            currentShuffledChoices.forEach((choice, index) => {
+                choicesHtml += `<button class="choice-btn" onclick="checkAnswer('${choice}', '${q.answer}')">${index + 1}. ${choice}</button>`;
+            });
+
+            content.innerHTML = `
+                <div class="story-box">
+                    <div class="speaker-name">${q.enemy}</div>
+                    ${q.encounter}<br><br>
+                    <strong>【出題】</strong><br>
+                    ${q.story}
+                </div>
+                <div class="choices">${choicesHtml}</div>
+                <div id="result-message" class="message"></div>
+            `;
+        } else {
+            badge.innerText = "大冒険クリア！";
+            content.innerHTML = `
+                <div class="story-box" style="text-align:center;">
+                    🎉 <strong>すべての試練を突破した！！</strong> 🎉<br><br>
+                    森田萬右衛門さんから授かった「伝説のみそ」と「伝説のたまり」で最高の料理を作り、食べた二人！<br>
+                    体全体が温かい光に包まれ、モクモクと湯気が晴れると……そこには無事に元の人間の姿に戻った自分が！<br><br>
+                    大冒険は大成功に終わりました！おめでとうございます！
+                </div>
+                <button class="choice-btn" style="text-align:center; background:#27ae60;" onclick="restartGame()">もう一度冒険する</button>
+            `;
+        }
+    }
+
+    function checkAnswer(selected, correct) {
+        const msg = document.getElementById('result-message');
+        const buttons = document.querySelectorAll('.choice-btn');
+        
+        buttons.forEach(btn => btn.disabled = true);
+
+        if (selected === correct) {
+            msg.className = "message correct";
+            msg.innerText = "✨ 正解！ 次のステージへ進みます！";
+            setTimeout(() => {
+                currentStep++;
+                renderGame();
+            }, 1200);
+        } else {
+            msg.className = "message wrong";
+            msg.innerText = "💥 ブーーーッ！！ 不正解…最初の関門へ戻ります！";
+            setTimeout(() => {
+                currentStep = 0; // 第1の関門へ戻る
+                renderGame();
+            }, 1500);
+        }
+    }
+
+    function nextStep() {
+        currentStep = 0;
+        renderGame();
+    }
+
+    function restartGame() {
+        currentStep = -1;
+        renderGame();
+    }
+
+    renderGame();
+</script>
+
+</body>
+</html>
