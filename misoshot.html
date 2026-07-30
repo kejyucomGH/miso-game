@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>武豊町みそ仕込みシューティング</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #1a1512; color: #f3f4f6; font-family: 'Helvetica Neue', sans-serif; touch-action: none; user-select: none; overflow: hidden; }
+        canvas { background: linear-gradient(to bottom, #2d241e, #1a1512); box-shadow: 0 10px 25px rgba(0,0,0,0.5); cursor: none; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2">
+
+    <header class="text-center mb-2">
+        <h1 class="text-lg font-bold text-amber-500 tracking-wider">純粋豆味噌列伝</h1>
+    </header>
+
+    <div class="relative w-full max-w-sm flex flex-col items-center">
+        <div class="w-full flex justify-between items-center bg-stone-800 px-4 py-2 rounded-t-lg border-b border-stone-700 text-xs font-semibold">
+            <div>スコア: <span id="score" class="text-amber-400">0</span></div>
+            <div class="flex gap-3">
+                <div class="text-red-400">混入: <span id="penaltyCount">0</span></div>
+                <div>残り: <span id="timer" class="text-emerald-400">60</span>秒</div>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="380" height="460" class="w-full h-auto rounded-b-lg"></canvas>
+    </div>
+
+    <!-- スタート画面 -->
+    <div id="startModal" class="absolute inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+        <div class="bg-stone-900 border border-amber-600 rounded-xl p-8 w-full max-w-sm text-center">
+            <h2 class="text-2xl font-bold text-amber-500 mb-6">純粋豆味噌列伝</h2>
+            <p class="text-white mb-8">大豆に麹を当てて豆味噌をつくる。<br>米や麦は撃ち落とす。<br>撃ちもらすと混入するぞ。<br>高品質の味噌をつくり、達人を目指そう！</p>
+            <button onclick="startGame()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg">仕込み開始</button>
+        </div>
+    </div>
+
+    <!-- リザルト画面 -->
+    <div id="resultModal" class="hidden absolute inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+        <div class="bg-stone-900 border border-amber-600 rounded-xl p-6 w-full max-w-sm text-center">
+            <h2 class="text-2xl font-bold text-amber-500 mb-4">仕込み終了！</h2>
+            <p class="text-xl text-white mb-2">最終スコア: <span id="finalScore" class="text-amber-400">0</span></p>
+            <p id="bonusDisplay" class="text-emerald-400 font-bold mb-2 hidden">未混入ボーナス: +500pt!</p>
+            <p id="rankDisplay" class="text-amber-300 font-bold mb-6"></p>
+            <button onclick="location.reload()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg shadow-lg">もう一度仕込む</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let score = 0, timeLeft = 60, penaltyCount = 0, gameState = 'waiting', powerLevel = 0, lastSaltTime = 60;
+        let bullets = [], fallingObjects = [];
+        const player = { x: 190, targetX: 190, easing: 0.25 };
+
+        function startGame() {
+            document.getElementById('startModal').classList.add('hidden');
+            gameState = 'playing';
+            
+            setInterval(() => { 
+                if(gameState === 'playing') {
+                    if(timeLeft > 0) timeLeft--;
+                    else { gameState = 'finished'; showResult(); }
+                }
+            }, 1000);
+        }
+
+        function showResult() {
+            let rank = "見習い職人";
+            if (penaltyCount === 0) {
+                score += 500;
+                document.getElementById('bonusDisplay').classList.remove('hidden');
+            }
+            if (score >= 5000) rank = "味噌の達人";
+            else if (score >= 3000) rank = "熟練の蔵人";
+            else if (score >= 1000) rank = "一人前の職人";
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('rankDisplay').textContent = "称号: " + rank;
+            document.getElementById('resultModal').classList.remove('hidden');
+        }
+
+        window.onmousemove = e => { player.targetX = e.clientX - canvas.getBoundingClientRect().left; };
+        canvas.onclick = () => { 
+            if(gameState !== 'playing') return;
+            const level = Math.min(powerLevel, 4);
+            let patterns = [
+                [{off: 0, vx: 0}], 
+                [{off: -10, vx: 0}, {off: 10, vx: 0}],
+                [{off: -15, vx: -1}, {off: 0, vx: 0}, {off: 15, vx: 1}],
+                [{off: -15, vx: -0.5}, {off: -5, vx: 0}, {off: 5, vx: 0}, {off: 15, vx: 0.5}],
+                [{off: -20, vx: -2}, {off: -10, vx: -1}, {off: 0, vx: 0}, {off: 10, vx: 1}, {off: 20, vx: 2}]
+            ];
+            patterns[level].forEach(p => { bullets.push({x: player.x + p.off, y: 400, vx: p.vx}); });
+        };
+
+        function update() {
+            if (gameState !== 'playing') return;
+            player.x += (player.targetX - player.x) * player.easing;
+
+            if (timeLeft > 0 && (lastSaltTime - timeLeft) >= 10) { 
+                fallingObjects.push({ x: Math.random() * 300 + 40, y: -20, type: 'salt', text: '塩', color: '#06b6d4', isMiso: false, speed: 2.5 });
+                lastSaltTime = timeLeft; 
+            }
+
+            if (Math.random() < 0.04) {
+                const r = Math.random();
+                let type, text, color;
+                if (r < 0.6) { type = 'bean'; text = '大豆'; color = '#fde047'; }
+                else if (r < 0.8) { type = 'rice'; text = '米'; color = '#fff'; }
+                else { type = 'wheat'; text = '麦'; color = '#84cc16'; }
+                fallingObjects.push({ x: Math.random() * 300 + 40, y: -20, type, text, color, isMiso: false, speed: 2.0 + Math.random() * 1.5 });
+            }
+
+            fallingObjects.forEach((obj, idx) => {
+                obj.y += obj.speed;
+                if (obj.isMiso) {
+                    obj.x += (player.x - obj.x) * 0.15;
+                    obj.y += (420 - obj.y) * 0.15;
+                }
+                if (obj.y > 400 && Math.abs(obj.x - player.x) < 40) {
+                    if (obj.isMiso) { score += 50; fallingObjects.splice(idx, 1); }
+                    else if (obj.type === 'salt') { powerLevel = Math.min(powerLevel + 1, 4); fallingObjects.splice(idx, 1); }
+                    else if (obj.type === 'bean') { fallingObjects.splice(idx, 1); }
+                    else if (obj.type === 'rice') { penaltyCount++; score = Math.max(0, score - 50); fallingObjects.splice(idx, 1); }
+                    else if (obj.type === 'wheat') { penaltyCount++; score = Math.max(0, score - 30); fallingObjects.splice(idx, 1); }
+                } else if (obj.y > 460) {
+                    if (obj.type === 'rice') { score = Math.max(0, score - 100); fallingObjects.splice(idx, 1); }
+                    else if (obj.type === 'wheat') { score = Math.max(0, score - 60); fallingObjects.splice(idx, 1); }
+                }
+            });
+
+            bullets.forEach(b => {
+                b.y -= 10; b.x += b.vx;
+                fallingObjects.forEach((obj) => {
+                    if (Math.hypot(b.x - obj.x, b.y - obj.y) < 30) {
+                        if (obj.type === 'bean' && !obj.isMiso) { obj.isMiso = true; }
+                        else if (obj.type === 'rice') { score += 5; fallingObjects.splice(fallingObjects.indexOf(obj), 1); }
+                        else if (obj.type === 'wheat') { score += 3; fallingObjects.splice(fallingObjects.indexOf(obj), 1); }
+                    }
+                });
+            });
+            bullets = bullets.filter(b => b.y > -20);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            ctx.save(); ctx.translate(player.x, 420);
+            ctx.fillStyle = '#78350f'; 
+            ctx.beginPath(); ctx.arc(0, -5, 28, Math.PI, 0); ctx.fill();
+            ctx.fillStyle = '#5d2b0b'; 
+            for(let i=-32; i<=24; i+=8) ctx.fillRect(i, -15, 7, 45);
+            ctx.fillStyle = '#451a03'; 
+            ctx.fillRect(-32, -10, 64, 6); ctx.fillRect(-32, 18, 64, 6);
+            ctx.restore();
+
+            fallingObjects.forEach(o => {
+                ctx.fillStyle = o.isMiso ? '#78350f' : o.color;
+                if (o.type === 'salt') ctx.fillRect(o.x - 12, o.y - 12, 24, 24);
+                else { ctx.beginPath(); ctx.arc(o.x, o.y, 18, 0, Math.PI*2); ctx.fill(); }
+                ctx.fillStyle = '#000'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.text, o.x, o.y);
+            });
+
+            ctx.fillStyle = '#fef08a';
+            bullets.forEach(b => ctx.fillRect(b.x - 3, b.y, 6, 12));
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('penaltyCount').textContent = penaltyCount;
+            document.getElementById('timer').textContent = timeLeft;
+            update(); requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
