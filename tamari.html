@@ -20,17 +20,17 @@
             100% { transform: scale(1); }
         }
         .success-anim { animation: success-pop 0.5s ease-in-out; }
-        
-        @keyframes hopDecay {
+
+        @keyframes bounce-stop {
             0% { transform: translateY(0); }
-            20% { transform: translateY(-40px); }
+            20% { transform: translateY(-50px); }
             40% { transform: translateY(0); }
-            60% { transform: translateY(-20px); }
+            60% { transform: translateY(-25px); }
             80% { transform: translateY(0); }
             90% { transform: translateY(-10px); }
             100% { transform: translateY(0); }
         }
-        .animate-hop-decay { animation: hopDecay 1.5s ease-out forwards; }
+        .modal-entry { animation: bounce-stop 1.2s ease-out forwards; }
     </style>
 </head>
 <body class="bg-amber-50 min-h-screen p-2 sm:p-4 flex flex-col items-center justify-between">
@@ -43,13 +43,13 @@
     </header>
 
     <div id="dice-screen" class="hidden fixed inset-0 bg-amber-900/90 flex flex-col items-center justify-center z-50">
-        <div id="dice" class="text-8xl mb-8 animate-bounce text-white">🎲</div>
+        <div id="dice" class="text-8xl mb-8 animate-pulse text-white">🎲</div>
         <div id="dice-result" class="text-2xl text-white font-bold">サイコロを振っています...</div>
     </div>
 
     <!-- 勝敗モーダル -->
     <div id="win-modal" class="hidden fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
-        <div id="win-modal-content" class="bg-white rounded-xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border-4 border-amber-600">
+        <div id="modal-box" class="bg-white rounded-xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border-4 border-amber-600">
             <div id="win-icon" class="text-5xl mb-3">🏺</div>
             <h2 id="win-title" class="text-2xl font-bold text-amber-900 mb-2">結果発表</h2>
             <p id="win-message" class="text-gray-700 mb-6 font-medium text-lg"></p>
@@ -57,16 +57,16 @@
         </div>
     </div>
 
-    <div class="flex flex-col items-center gap-4 my-2 text-amber-900 font-bold">
+    <div class="flex flex-col items-center gap-2 my-2 font-bold text-amber-900">
         <div id="turn-indicator" class="text-amber-800 px-3 py-1 bg-white rounded-full shadow border border-amber-200 text-sm uppercase">待機中</div>
-        <div class="flex space-x-8 sm:space-x-12 text-lg sm:text-xl">
+        <div class="flex space-x-8 text-lg items-center">
             <div class="flex flex-col items-center">
-                <span id="p1-label">プレイヤー1</span>
-                <div id="score1-icons" class="mt-1 flex gap-1 h-6"></div>
+                <span>プレイヤー1</span>
+                <div id="score1-icons" class="h-6 flex gap-0.5 mt-1"></div>
             </div>
             <div class="flex flex-col items-center">
                 <span id="p2-name">AI職人</span>
-                <div id="score2-icons" class="mt-1 flex gap-1 h-6"></div>
+                <div id="score2-icons" class="h-6 flex gap-0.5 mt-1"></div>
             </div>
         </div>
     </div>
@@ -84,26 +84,28 @@
         function initGame(mode) {
             gameMode = mode;
             document.getElementById('p2-name').innerText = mode === 'PvP' ? 'プレイヤー2' : 'AI職人';
-            document.getElementById('p1-label').innerText = 'プレイヤー1';
             
             const diceScreen = document.getElementById('dice-screen');
             diceScreen.classList.remove('hidden');
             let count = 0;
             const interval = setInterval(() => {
-                document.getElementById('dice').innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][Math.floor(Math.random()*6)];
-                if (++count > 10) {
+                const eyes = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+                document.getElementById('dice').innerText = eyes[Math.floor(Math.random()*6)];
+                if (++count > 15) {
                     clearInterval(interval);
-                    const diceVal = Math.floor(Math.random()*6)+1;
-                    isP1Turn = (diceVal % 2 !== 0); // 奇数ならP1、偶数ならP2
-                    const p2NameStr = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
-                    document.getElementById('dice-result').innerText = `出目: ${diceVal} -> ${isP1Turn ? 'プレイヤー1の先攻！' : p2NameStr + 'の先攻！'}`;
-                    setTimeout(() => { diceScreen.classList.add('hidden'); startGame(); }, 2000);
+                    const val = Math.floor(Math.random()*6)+1;
+                    const eyes = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+                    document.getElementById('dice').innerText = eyes[val-1];
+                    isP1Turn = (val % 2 !== 0);
+                    const p2Name = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
+                    document.getElementById('dice-result').innerText = `出目 ${val} : ${isP1Turn ? 'プレイヤー1の先攻！' : p2Name + 'の先攻！'}`;
+                    setTimeout(() => { diceScreen.classList.add('hidden'); startGame(); }, 1500);
                 }
-            }, 100);
+            }, 80);
         }
 
         function startGame() {
-            score1 = 0; score2 = 0; updateScores();
+            score1 = 0; score2 = 0; updateIcons();
             deck = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS].sort(() => Math.random() - 0.5);
             const board = document.getElementById('board');
             board.innerHTML = '';
@@ -117,6 +119,11 @@
             });
             updateTurn();
             if (gameMode === 'PvC' && !isP1Turn) setTimeout(executePcTurn, 1000);
+        }
+
+        async function userClick(card) {
+            if (isLocked || card.classList.contains('flipped') || (gameMode === 'PvC' && !isP1Turn)) return;
+            await revealCard(card);
         }
 
         async function revealCard(card) {
@@ -139,13 +146,10 @@
             } else if (flippedCards.length === 4) {
                 isLocked = true;
                 flippedCards.forEach(f => f.card.classList.add('success-anim'));
-                await new Promise(r => setTimeout(r, 600));
-                flippedCards.forEach(f => {
-                    f.card.classList.remove('success-anim');
-                    f.card.classList.add('hidden-card');
-                });
+                await new Promise(r => setTimeout(r, 800));
+                flippedCards.forEach(f => f.card.classList.add('hidden-card'));
                 if (isP1Turn) score1++; else score2++;
-                updateScores();
+                updateIcons();
                 flippedCards = [];
                 isLocked = false;
                 if (score1 + score2 === 4) showWinModal();
@@ -153,58 +157,46 @@
             }
         }
 
-        async function userClick(card) {
-            if (isLocked || card.classList.contains('flipped') || (gameMode === 'PvC' && !isP1Turn)) return;
-            await revealCard(card);
-        }
-
         async function executePcTurn() {
             if (isP1Turn || isLocked) return;
             const available = Array.from(document.querySelectorAll('.card:not(.flipped):not(.hidden-card)'));
-            if (available.length === 0) return;
-            await revealCard(available[Math.floor(Math.random() * available.length)]);
-            if (!isLocked && flippedCards.length > 0 && flippedCards.length < 4) setTimeout(executePcTurn, 1000);
+            if (available.length > 0) {
+                await revealCard(available[Math.floor(Math.random() * available.length)]);
+                if (!isLocked && flippedCards.length > 0 && flippedCards.length < 4) setTimeout(executePcTurn, 1000);
+            }
         }
 
         function updateTurn() {
-            document.getElementById('turn-indicator').innerText = isP1Turn ? "プレイヤー1の番" : (gameMode === 'PvP' ? "プレイヤー2の番" : "AI職人の番");
+            const p2Name = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
+            document.getElementById('turn-indicator').innerText = isP1Turn ? "プレイヤー1の番" : (p2Name + "の番");
         }
 
-        function updateScores() {
-            const s1Icons = document.getElementById('score1-icons');
-            const s2Icons = document.getElementById('score2-icons');
-            s1Icons.innerHTML = '🏺'.repeat(score1);
-            s2Icons.innerHTML = '🏺'.repeat(score2);
+        function updateIcons() {
+            document.getElementById('score1-icons').innerHTML = '🏺'.repeat(score1);
+            document.getElementById('score2-icons').innerHTML = '🏺'.repeat(score2);
         }
 
         function showWinModal() {
             const modal = document.getElementById('win-modal');
-            const content = document.getElementById('win-modal-content');
-            const title = document.getElementById('win-title');
-            const message = document.getElementById('win-message');
+            const box = document.getElementById('modal-box');
             const icon = document.getElementById('win-icon');
-
-            if (score1 > score2) {
-                icon.innerText = '🏆';
-                title.innerText = 'プレイヤー1の勝利！';
-                message.innerText = `見事な熟成で極上のたまり醤油を完成させました！`;
-            } else if (score2 > score1) {
-                // 人間vsAIでAIが勝った場合のみ銀、PvPなら金
-                icon.innerText = (gameMode === 'PvP') ? '🏆' : '🥈';
-                title.innerText = `${gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人'}の勝利！`;
-                message.innerText = `素晴らしい腕前でした！`;
-            } else {
-                icon.innerText = '🤝';
-                title.innerText = '引き分け！';
-                message.innerText = `互角の素晴らしい職人芸でした！`;
+            const title = document.getElementById('win-title');
+            
+            box.classList.add('modal-entry');
+            if (score1 > score2) { icon.innerText = '🏆'; title.innerText = 'プレイヤー1の勝利！'; }
+            else if (score2 > score1) { 
+                icon.innerText = (gameMode === 'PvC') ? '🥈' : '🏆'; 
+                title.innerText = (gameMode === 'PvC' ? 'AI職人' : 'プレイヤー2') + 'の勝利！'; 
             }
+            else { icon.innerText = '🤝'; title.innerText = '引き分け！'; }
+            
+            document.getElementById('win-message').innerText = `スコア: ${score1} - ${score2}`;
             modal.classList.remove('hidden');
-            content.classList.add('animate-hop-decay');
         }
 
         function closeWinModal() {
             document.getElementById('win-modal').classList.add('hidden');
-            document.getElementById('win-modal-content').classList.remove('animate-hop-decay');
+            document.getElementById('modal-box').classList.remove('modal-entry');
         }
     </script>
 </body>
