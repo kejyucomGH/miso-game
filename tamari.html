@@ -17,7 +17,6 @@
         @keyframes success-pop { 0% { transform: scale(1); } 50% { transform: scale(1.1) rotate(2deg); background-color: #fef3c7; } 100% { transform: scale(1); } }
         .modal-bounce { animation: modal-settle 1.2s cubic-bezier(0.1, 0.7, 0.3, 1) forwards; }
         @keyframes modal-settle { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.1); opacity: 1; } 70% { transform: scale(0.9); } 85% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        #dice-screen { display: none; }
     </style>
 </head>
 <body class="bg-amber-50 min-h-screen flex flex-col items-center pt-4 pb-8">
@@ -26,12 +25,11 @@
         <h1 class="text-xl font-bold text-amber-900 mb-2">武豊たまり職人：神経衰弱</h1>
         <div id="game-controls" class="space-x-2">
             <button onclick="initGame('PvC')" class="bg-amber-800 text-white px-3 py-1.5 rounded-lg text-sm shadow hover:bg-amber-900 transition">人間 vs AI職人</button>
-            <button onclick="initGame('PvP')" class="bg-amber-800 text-white px-3 py-1.5 rounded-lg text-sm shadow hover:bg-amber-900 transition">人間 vs 人間</button>
+            <button onclick="interactPvP()" class="bg-amber-800 text-white px-3 py-1.5 rounded-lg text-sm shadow hover:bg-amber-900 transition">人間 vs 人間</button>
         </div>
     </header>
 
-    <!-- サイコロ表示エリア：初期はhidden、JSで表示 -->
-    <div id="dice-screen" class="fixed inset-0 bg-amber-900/90 flex-col items-center justify-center z-50">
+    <div id="dice-screen" class="hidden fixed inset-0 bg-amber-900/90 flex flex-col items-center justify-center z-50">
         <div id="dice" class="text-8xl mb-4 text-white min-h-[120px] flex items-center justify-center"></div>
         <div id="dice-result" class="text-lg text-white font-bold px-4 text-center min-h-[30px]"></div>
     </div>
@@ -51,16 +49,18 @@
         <div class="text-center"><div id="p2-name">AI職人</div><div id="score2-icons" class="text-xl mt-1 h-6"></div></div>
     </div>
 
-    <div id="board" class="grid grid-cols-4 gap-2 w-full max-w-[360px] p-2 flex-grow"></div>
+    <!-- ここで gap-2 により上下左右の間隔を均一に固定 -->
+    <div id="board" class="grid grid-cols-4 gap-2 w-full max-w-[360px] p-2"></div>
 
-    <!-- 説明文を最下部へ配置 -->
-    <div class="mt-6 px-4 text-center text-amber-900 font-bold">
+    <div class="mt-auto pt-6 px-4 text-center text-amber-900 font-bold">
         豆麹・塩・水・石の４種類をそろえて「たまり醤油」を作ろう！
     </div>
 
     <script>
         const ITEMS = ['豆麹', '塩', '水', '石'];
         let deck = [], flippedCards = [], score1 = 0, score2 = 0, isP1Turn = true, gameMode = 'PvP', isLocked = false;
+
+        function interactPvP() { initGame('PvP'); }
 
         function initGame(mode) {
             gameMode = mode;
@@ -72,7 +72,7 @@
             
             diceElem.innerText = '';
             resultElem.innerText = 'サイコロを振っています...';
-            diceScreen.style.display = 'flex'; 
+            diceScreen.classList.remove('hidden'); 
             
             let count = 0;
             const interval = setInterval(() => {
@@ -84,7 +84,7 @@
                     diceElem.innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][final-1];
                     isP1Turn = (final % 2 !== 0);
                     resultElem.innerText = `出目: ${final} (${final % 2 !== 0 ? '奇数:プレイヤー1' : '偶数:' + (mode === 'PvP' ? 'プレイヤー2' : 'AI')}) の先攻！`;
-                    setTimeout(() => { diceScreen.style.display = 'none'; startGame(); }, 1500);
+                    setTimeout(() => { diceScreen.classList.add('hidden'); startGame(); }, 1500);
                 }
             }, 100);
         }
