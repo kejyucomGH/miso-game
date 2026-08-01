@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>武豊たまり職人：神経衰弱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card { perspective: 1000px; cursor: pointer; aspect-ratio: 1 / 1; }
+        .card-inner { transition: transform 0.4s; transform-style: preserve-3d; position: relative; width: 100%; height: 100%; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .back, .front { backface-visibility: hidden; position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1rem; border-radius: 0.5rem; border: 2px solid #b45309; }
+        .back { background: #d97706; color: white; box-shadow: inset 0 0 10px rgba(0,0,0,0.2); font-size: 2rem; }
+        .front { transform: rotateY(180deg); background: white; color: #78350f; font-weight: bold; }
+        .card.hidden-card { opacity: 0; transform: scale(0.8); transition: all 0.5s ease; pointer-events: none; }
+        
+        @keyframes success-pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15) rotate(3deg); background-color: #fef3c7; }
+            100% { transform: scale(1); }
+        }
+        .success-anim { animation: success-pop 0.5s ease-in-out; }
+        
+        @keyframes hopDecay {
+            0% { transform: translateY(0); }
+            20% { transform: translateY(-40px); }
+            40% { transform: translateY(0); }
+            60% { transform: translateY(-20px); }
+            80% { transform: translateY(0); }
+            90% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+        }
+        .animate-hop-decay { animation: hopDecay 1.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-amber-50 min-h-screen p-2 sm:p-4 flex flex-col items-center justify-between">
+    <header class="text-center mb-2">
+        <h1 class="text-2xl sm:text-3xl font-bold text-amber-900 mb-1">武豊たまり職人：神経衰弱</h1>
+        <div id="game-controls" class="space-x-2">
+            <button onclick="initGame('PvC')" class="bg-amber-800 text-white text-sm sm:text-base px-3 py-1.5 rounded shadow hover:bg-amber-900 transition">人間 vs AI職人</button>
+            <button onclick="initGame('PvP')" class="bg-amber-800 text-white text-sm sm:text-base px-3 py-1.5 rounded shadow hover:bg-amber-900 transition">人間 vs 人間</button>
+        </div>
+    </header>
+
+    <div id="dice-screen" class="hidden fixed inset-0 bg-amber-900/90 flex flex-col items-center justify-center z-50">
+        <div id="dice" class="text-8xl mb-8 animate-bounce text-white">🎲</div>
+        <div id="dice-result" class="text-2xl text-white font-bold">サイコロを振っています...</div>
+    </div>
+
+    <!-- 勝敗モーダル -->
+    <div id="win-modal" class="hidden fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
+        <div id="win-modal-content" class="bg-white rounded-xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border-4 border-amber-600">
+            <div id="win-icon" class="text-5xl mb-3">🏺</div>
+            <h2 id="win-title" class="text-2xl font-bold text-amber-900 mb-2">結果発表</h2>
+            <p id="win-message" class="text-gray-700 mb-6 font-medium text-lg"></p>
+            <button onclick="closeWinModal()" class="bg-amber-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-amber-800 shadow transition w-full">もう一度遊ぶ</button>
+        </div>
+    </div>
+
+    <div class="flex flex-col items-center gap-4 my-2 text-amber-900 font-bold">
+        <div id="turn-indicator" class="text-amber-800 px-3 py-1 bg-white rounded-full shadow border border-amber-200 text-sm uppercase">待機中</div>
+        <div class="flex space-x-8 sm:space-x-12 text-lg sm:text-xl">
+            <div class="flex flex-col items-center">
+                <span id="p1-label">プレイヤー1</span>
+                <div id="score1-icons" class="mt-1 flex gap-1 h-6"></div>
+            </div>
+            <div class="flex flex-col items-center">
+                <span id="p2-name">AI職人</span>
+                <div id="score2-icons" class="mt-1 flex gap-1 h-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="board" class="grid grid-cols-4 gap-2 sm:gap-3 max-w-md w-full my-auto"></div>
+
+    <footer class="text-xs text-amber-700/80 text-center mt-2">
+        豆麹・塩・水・石の4種類を揃えて「たまり醤油」を作ろう！
+    </footer>
+
+    <script>
+        const ITEMS = ['豆麹', '塩', '水', '石'];
+        let deck = [], flippedCards = [], score1 = 0, score2 = 0, isP1Turn = true, gameMode = 'PvP', isLocked = false;
+
+        function initGame(mode) {
+            gameMode = mode;
+            document.getElementById('p2-name').innerText = mode === 'PvP' ? 'プレイヤー2' : 'AI職人';
+            document.getElementById('p1-label').innerText = 'プレイヤー1';
+            
+            const diceScreen = document.getElementById('dice-screen');
+            diceScreen.classList.remove('hidden');
+            let count = 0;
+            const interval = setInterval(() => {
+                document.getElementById('dice').innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][Math.floor(Math.random()*6)];
+                if (++count > 10) {
+                    clearInterval(interval);
+                    const diceVal = Math.floor(Math.random()*6)+1;
+                    isP1Turn = (diceVal % 2 !== 0); // 奇数ならP1、偶数ならP2
+                    const p2NameStr = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
+                    document.getElementById('dice-result').innerText = `出目: ${diceVal} -> ${isP1Turn ? 'プレイヤー1の先攻！' : p2NameStr + 'の先攻！'}`;
+                    setTimeout(() => { diceScreen.classList.add('hidden'); startGame(); }, 2000);
+                }
+            }, 100);
+        }
+
+        function startGame() {
+            score1 = 0; score2 = 0; updateScores();
+            deck = [...ITEMS, ...ITEMS, ...ITEMS, ...ITEMS].sort(() => Math.random() - 0.5);
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            deck.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'card w-full';
+                card.dataset.index = index;
+                card.innerHTML = `<div class="card-inner" data-item="${item}"><div class="back">?</div><div class="front text-sm sm:text-base">${item}</div></div>`;
+                card.onclick = () => userClick(card);
+                board.appendChild(card);
+            });
+            updateTurn();
+            if (gameMode === 'PvC' && !isP1Turn) setTimeout(executePcTurn, 1000);
+        }
+
+        async function revealCard(card) {
+            card.classList.add('flipped');
+            const item = card.querySelector('.card-inner').dataset.item;
+            flippedCards.push({ card, item });
+
+            const items = flippedCards.map(f => f.item);
+            const hasDuplicate = new Set(items).size < items.length;
+
+            if (hasDuplicate) {
+                isLocked = true;
+                await new Promise(r => setTimeout(r, 1000));
+                flippedCards.forEach(f => f.card.classList.remove('flipped'));
+                flippedCards = [];
+                isLocked = false;
+                isP1Turn = !isP1Turn;
+                updateTurn();
+                if (gameMode === 'PvC' && !isP1Turn) setTimeout(executePcTurn, 1000);
+            } else if (flippedCards.length === 4) {
+                isLocked = true;
+                flippedCards.forEach(f => f.card.classList.add('success-anim'));
+                await new Promise(r => setTimeout(r, 600));
+                flippedCards.forEach(f => {
+                    f.card.classList.remove('success-anim');
+                    f.card.classList.add('hidden-card');
+                });
+                if (isP1Turn) score1++; else score2++;
+                updateScores();
+                flippedCards = [];
+                isLocked = false;
+                if (score1 + score2 === 4) showWinModal();
+                else if (gameMode === 'PvC' && !isP1Turn) setTimeout(executePcTurn, 1000);
+            }
+        }
+
+        async function userClick(card) {
+            if (isLocked || card.classList.contains('flipped') || (gameMode === 'PvC' && !isP1Turn)) return;
+            await revealCard(card);
+        }
+
+        async function executePcTurn() {
+            if (isP1Turn || isLocked) return;
+            const available = Array.from(document.querySelectorAll('.card:not(.flipped):not(.hidden-card)'));
+            if (available.length === 0) return;
+            await revealCard(available[Math.floor(Math.random() * available.length)]);
+            if (!isLocked && flippedCards.length > 0 && flippedCards.length < 4) setTimeout(executePcTurn, 1000);
+        }
+
+        function updateTurn() {
+            document.getElementById('turn-indicator').innerText = isP1Turn ? "プレイヤー1の番" : (gameMode === 'PvP' ? "プレイヤー2の番" : "AI職人の番");
+        }
+
+        function updateScores() {
+            const s1Icons = document.getElementById('score1-icons');
+            const s2Icons = document.getElementById('score2-icons');
+            s1Icons.innerHTML = '🏺'.repeat(score1);
+            s2Icons.innerHTML = '🏺'.repeat(score2);
+        }
+
+        function showWinModal() {
+            const modal = document.getElementById('win-modal');
+            const content = document.getElementById('win-modal-content');
+            const title = document.getElementById('win-title');
+            const message = document.getElementById('win-message');
+            const icon = document.getElementById('win-icon');
+
+            if (score1 > score2) {
+                icon.innerText = '🏆';
+                title.innerText = 'プレイヤー1の勝利！';
+                message.innerText = `見事な熟成で極上のたまり醤油を完成させました！`;
+            } else if (score2 > score1) {
+                // 人間vsAIでAIが勝った場合のみ銀、PvPなら金
+                icon.innerText = (gameMode === 'PvP') ? '🏆' : '🥈';
+                title.innerText = `${gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人'}の勝利！`;
+                message.innerText = `素晴らしい腕前でした！`;
+            } else {
+                icon.innerText = '🤝';
+                title.innerText = '引き分け！';
+                message.innerText = `互角の素晴らしい職人芸でした！`;
+            }
+            modal.classList.remove('hidden');
+            content.classList.add('animate-hop-decay');
+        }
+
+        function closeWinModal() {
+            document.getElementById('win-modal').classList.add('hidden');
+            document.getElementById('win-modal-content').classList.remove('animate-hop-decay');
+        }
+    </script>
+</body>
+</html>
