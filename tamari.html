@@ -20,17 +20,9 @@
             100% { transform: scale(1); }
         }
         .success-anim { animation: success-pop 0.5s ease-in-out; }
-
-        @keyframes bounce-stop {
-            0% { transform: translateY(0); }
-            20% { transform: translateY(-50px); }
-            40% { transform: translateY(0); }
-            60% { transform: translateY(-25px); }
-            80% { transform: translateY(0); }
-            90% { transform: translateY(-10px); }
-            100% { transform: translateY(0); }
-        }
-        .modal-entry { animation: bounce-stop 1.2s ease-out forwards; }
+        
+        /* 初期状態を隠すために追加 */
+        #dice { display: none; }
     </style>
 </head>
 <body class="bg-amber-50 min-h-screen p-2 sm:p-4 flex flex-col items-center justify-between">
@@ -43,39 +35,29 @@
     </header>
 
     <div id="dice-screen" class="hidden fixed inset-0 bg-amber-900/90 flex flex-col items-center justify-center z-50">
-        <div id="dice" class="text-8xl mb-8 animate-pulse text-white">🎲</div>
-        <div id="dice-result" class="text-2xl text-white font-bold">サイコロを振っています...</div>
+        <div id="dice" class="text-8xl mb-8 text-white"></div>
+        <div id="dice-result" class="text-2xl text-white font-bold"></div>
     </div>
 
     <!-- 勝敗モーダル -->
     <div id="win-modal" class="hidden fixed inset-0 bg-black/60 flex flex-col items-center justify-center z-50 p-4">
         <div id="modal-box" class="bg-white rounded-xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border-4 border-amber-600">
             <div id="win-icon" class="text-5xl mb-3">🏺</div>
-            <h2 id="win-title" class="text-2xl font-bold text-amber-900 mb-2">結果発表</h2>
+            <h2 id="win-title" class="text-2xl font-bold text-amber-900 mb-2"></h2>
             <p id="win-message" class="text-gray-700 mb-6 font-medium text-lg"></p>
             <button onclick="closeWinModal()" class="bg-amber-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-amber-800 shadow transition w-full">もう一度遊ぶ</button>
         </div>
     </div>
 
-    <div class="flex flex-col items-center gap-2 my-2 font-bold text-amber-900">
-        <div id="turn-indicator" class="text-amber-800 px-3 py-1 bg-white rounded-full shadow border border-amber-200 text-sm uppercase">待機中</div>
-        <div class="flex space-x-8 text-lg items-center">
-            <div class="flex flex-col items-center">
-                <span>プレイヤー1</span>
-                <div id="score1-icons" class="h-6 flex gap-0.5 mt-1"></div>
-            </div>
-            <div class="flex flex-col items-center">
-                <span id="p2-name">AI職人</span>
-                <div id="score2-icons" class="h-6 flex gap-0.5 mt-1"></div>
-            </div>
-        </div>
+    <div class="flex space-x-4 sm:space-x-6 my-2 font-bold text-amber-900 text-lg sm:text-xl items-center">
+        <div class="flex flex-col items-center"><span id="p1-label">プレイヤー1</span><div id="score1-icons" class="h-6 flex gap-0.5 mt-1 text-sm"></div></div>
+        <div id="turn-indicator" class="text-amber-800 px-3 py-1 bg-white rounded-full shadow border border-amber-200 text-xs sm:text-sm uppercase">待機中</div>
+        <div class="flex flex-col items-center"><span id="p2-name">AI職人</span><div id="score2-icons" class="h-6 flex gap-0.5 mt-1 text-sm"></div></div>
     </div>
 
     <div id="board" class="grid grid-cols-4 gap-2 sm:gap-3 max-w-md w-full my-auto"></div>
 
-    <footer class="text-xs text-amber-700/80 text-center mt-2">
-        豆麹・塩・水・石の4種類を揃えて「たまり醤油」を作ろう！
-    </footer>
+    <footer class="text-xs text-amber-700/80 text-center mt-2">豆麹・塩・水・石の4種類を揃えて「たまり醤油」を作ろう！</footer>
 
     <script>
         const ITEMS = ['豆麹', '塩', '水', '石'];
@@ -86,22 +68,23 @@
             document.getElementById('p2-name').innerText = mode === 'PvP' ? 'プレイヤー2' : 'AI職人';
             
             const diceScreen = document.getElementById('dice-screen');
+            const diceEl = document.getElementById('dice');
             diceScreen.classList.remove('hidden');
+            diceEl.style.display = 'block'; // 初回のみここでの表示許可
+            
             let count = 0;
             const interval = setInterval(() => {
-                const eyes = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-                document.getElementById('dice').innerText = eyes[Math.floor(Math.random()*6)];
-                if (++count > 15) {
+                diceEl.innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][Math.floor(Math.random()*6)];
+                if (++count > 10) {
                     clearInterval(interval);
                     const val = Math.floor(Math.random()*6)+1;
-                    const eyes = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-                    document.getElementById('dice').innerText = eyes[val-1];
+                    diceEl.innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][val-1];
                     isP1Turn = (val % 2 !== 0);
                     const p2Name = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
-                    document.getElementById('dice-result').innerText = `出目 ${val} : ${isP1Turn ? 'プレイヤー1の先攻！' : p2Name + 'の先攻！'}`;
+                    document.getElementById('dice-result').innerText = `出目 ${val} (${val % 2 !== 0 ? '奇数' : '偶数'}) : ${isP1Turn ? 'プレイヤー1' : p2Name}の先攻！`;
                     setTimeout(() => { diceScreen.classList.add('hidden'); startGame(); }, 1500);
                 }
-            }, 80);
+            }, 100);
         }
 
         function startGame() {
@@ -130,13 +113,10 @@
             card.classList.add('flipped');
             const item = card.querySelector('.card-inner').dataset.item;
             flippedCards.push({ card, item });
-
             const items = flippedCards.map(f => f.item);
-            const hasDuplicate = new Set(items).size < items.length;
-
-            if (hasDuplicate) {
+            if (new Set(items).size < items.length) {
                 isLocked = true;
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 800));
                 flippedCards.forEach(f => f.card.classList.remove('flipped'));
                 flippedCards = [];
                 isLocked = false;
@@ -146,8 +126,8 @@
             } else if (flippedCards.length === 4) {
                 isLocked = true;
                 flippedCards.forEach(f => f.card.classList.add('success-anim'));
-                await new Promise(r => setTimeout(r, 800));
-                flippedCards.forEach(f => f.card.classList.add('hidden-card'));
+                await new Promise(r => setTimeout(r, 600));
+                flippedCards.forEach(f => { f.card.classList.remove('success-anim'); f.card.classList.add('hidden-card'); });
                 if (isP1Turn) score1++; else score2++;
                 updateIcons();
                 flippedCards = [];
@@ -160,15 +140,13 @@
         async function executePcTurn() {
             if (isP1Turn || isLocked) return;
             const available = Array.from(document.querySelectorAll('.card:not(.flipped):not(.hidden-card)'));
-            if (available.length > 0) {
-                await revealCard(available[Math.floor(Math.random() * available.length)]);
-                if (!isLocked && flippedCards.length > 0 && flippedCards.length < 4) setTimeout(executePcTurn, 1000);
-            }
+            if (available.length === 0) return;
+            await revealCard(available[Math.floor(Math.random() * available.length)]);
+            if (!isLocked && flippedCards.length > 0 && flippedCards.length < 4) setTimeout(executePcTurn, 1000);
         }
 
         function updateTurn() {
-            const p2Name = gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人';
-            document.getElementById('turn-indicator').innerText = isP1Turn ? "プレイヤー1の番" : (p2Name + "の番");
+            document.getElementById('turn-indicator').innerText = isP1Turn ? "プレイヤー1の番" : (gameMode === 'PvP' ? 'プレイヤー2の番' : 'AI職人の番');
         }
 
         function updateIcons() {
@@ -179,25 +157,23 @@
         function showWinModal() {
             const modal = document.getElementById('win-modal');
             const box = document.getElementById('modal-box');
-            const icon = document.getElementById('win-icon');
             const title = document.getElementById('win-title');
+            const icon = document.getElementById('win-icon');
             
-            box.classList.add('modal-entry');
+            // バウンドして止まるアニメーション用の追加スタイル
+            const style = document.createElement('style');
+            style.innerHTML = `@keyframes bounce-stop { 0%, 100% { transform: translateY(0); } 20% { transform: translateY(-50px); } 40% { transform: translateY(0); } 60% { transform: translateY(-25px); } 80% { transform: translateY(0); } } .bounce-stop-anim { animation: bounce-stop 1.2s ease-out forwards; }`;
+            document.head.appendChild(style);
+            box.classList.add('bounce-stop-anim');
+            
             if (score1 > score2) { icon.innerText = '🏆'; title.innerText = 'プレイヤー1の勝利！'; }
-            else if (score2 > score1) { 
-                icon.innerText = (gameMode === 'PvC') ? '🥈' : '🏆'; 
-                title.innerText = (gameMode === 'PvC' ? 'AI職人' : 'プレイヤー2') + 'の勝利！'; 
-            }
+            else if (score2 > score1) { icon.innerText = (gameMode === 'PvC') ? '🥈' : '🏆'; title.innerText = (gameMode === 'PvC' ? 'AI職人' : 'プレイヤー2') + 'の勝利！'; }
             else { icon.innerText = '🤝'; title.innerText = '引き分け！'; }
-            
-            document.getElementById('win-message').innerText = `スコア: ${score1} - ${score2}`;
+            document.getElementById('win-message').innerText = `結果: プレイヤー1 (${score1}) vs ${gameMode === 'PvP' ? 'プレイヤー2' : 'AI職人'} (${score2})`;
             modal.classList.remove('hidden');
         }
 
-        function closeWinModal() {
-            document.getElementById('win-modal').classList.add('hidden');
-            document.getElementById('modal-box').classList.remove('modal-entry');
-        }
+        function closeWinModal() { document.getElementById('win-modal').classList.add('hidden'); }
     </script>
 </body>
 </html>
